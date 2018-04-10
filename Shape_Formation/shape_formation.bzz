@@ -1,0 +1,240 @@
+# Use Shift + Click to select a robot
+# When a robot is selected, its variables appear in this editor
+
+# Use Ctrl + Click (Cmd + Click on Mac) to move a selected robot to a different location
+
+
+include "/usr/local/share/buzz/include/vec2.bzz"
+
+# Lennard-Jones parameters
+TARGET_KIN     = 56.56
+EPSILON_KIN    = 400.0
+TARGET_NONKIN  = 40.0
+EPSILON_NONKIN = 400.0
+
+# For cell
+TARGET_KIN_CELL     = 60.0
+EPSILON_KIN_CELL    = 400.0
+TARGET_NONKIN_CELL  = 80.0
+EPSILON_NONKIN_CELL = 400.0
+
+
+
+function vec2_new_polar(length, angle) {
+   var vec2 
+   vec2 = { .x = length * math.cos(angle),
+            .y = length * math.sin(angle)
+   }
+   return vec2
+}
+
+function vec2_sum(v1, v2) {
+   v1.x = v1.x + v2.x
+   v1.y = v1.y + v2.y
+	 return v1
+}
+
+function vec2_angle(v) {
+   return math.atan(v.y, v.x)
+}
+
+function lj_magnitude(dist, target, epsilon) {
+  return -(epsilon / dist) * ((target / dist)^4 - (target / dist)^2)
+}
+ 
+# Neighbor data to LJ interaction vector
+# For c1 = c1 and c2 = c2 
+function lj_vector_kin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_KIN, EPSILON_KIN), data.azimuth)
+}
+ 
+# Neighbor data to LJ interaction vector
+
+function lj_vector_nonkin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_NONKIN, EPSILON_NONKIN), data.azimuth)
+}
+ 
+# Neighbor data to LJ interaction vector
+# For c1 = c1 and c2 = c2 
+function lj_vector_kin_cell(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_KIN_CELL, EPSILON_KIN_CELL), data.azimuth)
+}
+ 
+# Neighbor data to LJ interaction vector
+
+function lj_vector_nonkin_cell(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_NONKIN_CELL, EPSILON_NONKIN_CELL), data.azimuth)
+}
+
+
+
+# Accumulator of neighbor LJ interactions
+function lj_sum(rid, data, accum) {
+  return math.vec2.add(data, accum)
+}
+ 
+# Calculates and actuates the flocking interaction
+function square(){
+  # Calculate accumulator
+  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+  accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
+ accum = vec2_sum(accum,go_to_light()) 
+ if(neighbors.count() > 0)
+    math.vec2.scale(accum, 1.0 / neighbors.count())
+  # Move according to vector
+ accum =scale(accum,5) 
+	goto(accum.x, accum.y)
+
+}
+# This function is executed every time you press the 'execute' button
+
+function scale(vec,scale){
+var new_vec ={ .x = scale*vec.x, .y =scale*vec.y }
+
+return new_vec
+
+
+}
+
+
+
+function go_to_light(){
+var i
+i = 0
+var sum = {.x = 0 , .y = 0 }
+# Taking 8 sensor values from each robot
+# Getting values from proximity sensor
+while (i < 8) 
+{
+length = light[i].value # magnitude of the sensor vector
+angle = light[i].angle # angle of the sensor vector
+sum.i = vec2_new_polar(length,angle)
+log(i)
+sum = vec2_sum(sum.i,sum)
+i = i+1
+}
+
+#a2 = vec2_angle(sum)
+#l = math.sqrt(sum.x*sum.x + sum.y*sum.y)
+
+#log("Angle = ",a2)
+#log("Vector = ",sum)
+#sx = 15.0*sum.x
+#sy = 15.0*sum.y
+#gotoc(sx,sy)
+#sum = {.x = sx, .y =sy}
+#sum = scale(sum,10)
+
+return sum
+
+}
+
+function general_cell(){
+
+# Getting distance vector for kins
+
+var accum = neighbors.kin().map(lj_vector_kin_cell).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+# Getting distance vector for non-kins and adding together to get final vector
+if (s3.in()){
+accum = neighbors.nonkin().map(lj_vector_nonkin_cell).reduce(lj_sum, accum)
+}
+if (s4.in()){
+accum = neighbors.nonkin().map(lj_vector_kin_cell).reduce(lj_sum, accum)
+}
+accum = vec2_sum(accum,go_to_light())
+
+if(neighbors.count() > 0){
+  math.vec2.scale(accum, 1.0 / neighbors.count())
+# Move according to vector
+}
+accum =scale(accum,15)
+goto(accum.x, accum.y)
+
+
+
+
+}
+
+
+
+function init() {
+   # put your code here
+
+# Swarms Created
+
+s1 = swarm.create(1)
+s1.select(id < 4)
+s2 = swarm.create(2)
+s2.select((id >= 4) and (id < 9))
+s3 = swarm.create(3)
+s3.select(id < 9)
+#s4 = s3.others(4)
+s4 = swarm.create(4)
+s4.select((id >= 9) and (id <= 19))
+
+# Display swarms by leds
+
+if (s1.in()){
+set_leds(255,0,0)
+}
+
+if (s2.in()){
+set_leds(0,0,255)
+}
+
+if (s4.in()){
+set_leds(0,255,0)
+}
+
+}
+# This function is executed at each time step
+# It must contain the logic of your controller
+function step() {
+# put your code here
+# if in swarm 3 move towards the light source
+#go_to_light()
+
+
+#if (t < 800)
+#{
+#s3.exec(go_to_light)
+#s4.exec(go_to_light)
+#s3.exec(general_cell)
+
+#s3.exec(general_cell)
+s4.exec(general_cell)
+
+s1.exec(square)
+s2.exec(square)
+#}
+ 
+#if (t > 800)
+#{
+
+#s2.exec(square)
+#}
+
+#t = t + 1
+
+}
+
+
+
+# This function is executed every time you press the 'reset'
+# button in the GUI. It is supposed to restore the state
+# of the controller to whatever it was right after init() was
+# called. The state of sensors and actuators is reset
+# automatically by ARGoS.
+function reset() {
+   # put your code here
+
+
+}
+
+
+
+# This function is executed only once, when the robot is removed
+# from the simulation
+function destroy() {
+   # put your code here
+}
